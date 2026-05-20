@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /agent_metadata/{userId} {
+      // Identity-Level Security
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Create Validation
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['lastRun', 'agentVersion', 'statusFlags'])
+        && request.resource.data.keys().hasOnly(['lastRun', 'agentVersion', 'statusFlags'])
+        && request.resource.data.lastRun is timestamp
+        && request.resource.data.agentVersion is string
+        && request.resource.data.agentVersion.size() <= 20
+        && request.resource.data.statusFlags is list
+        && request.resource.data.statusFlags.size() <= 10;
+        
+      // Update Validation (prevent bypass)
+      allow update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastRun', 'agentVersion', 'statusFlags'])
+        && request.resource.data.lastRun is timestamp
+        && request.resource.data.agentVersion is string
+        && request.resource.data.agentVersion.size() <= 20
+        && request.resource.data.statusFlags is list
+        && request.resource.data.statusFlags.size() <= 10;
+        
+      // Delete Validation
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
